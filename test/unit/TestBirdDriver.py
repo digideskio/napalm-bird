@@ -21,7 +21,7 @@ from napalm_base.test.base import TestConfigNetworkDriver, TestGettersNetworkDri
 import json
 
 
-class TestConfigDriver(unittest.TestCase, TestConfigNetworkDriver):
+class TestConfigBirdDriver(unittest.TestCase, TestConfigNetworkDriver):
     """Group of tests that test Configuration related methods."""
 
     @classmethod
@@ -40,41 +40,3 @@ class TestConfigDriver(unittest.TestCase, TestConfigNetworkDriver):
         cls.device.load_replace_candidate(filename='%s/initial.conf' % cls.vendor)
         cls.device.commit_config()
 
-
-class TestGetterDriver(unittest.TestCase, TestGettersNetworkDriver):
-    """Group of tests that test getters."""
-
-    @classmethod
-    def setUpClass(cls):
-        """Run before starting the tests."""
-        cls.mock = True
-
-        hostname = '127.0.0.1'
-        username = 'vagrant'
-        password = 'vagrant'
-        cls.vendor = 'bird'
-
-        optional_args = {'port': 12443, }
-        cls.device = bird.BirdDriver(hostname, username, password, timeout=60,
-                                             optional_args=optional_args)
-
-        if cls.mock:
-            cls.device.device = FakeDevice()
-        else:
-            cls.device.open()
-
-
-class FakeDevice:
-    """Test double."""
-
-    @staticmethod
-    def read_json_file(filename):
-        """Return the content of a file with content formatted as json."""
-        with open(filename) as data_file:
-            return json.load(data_file)
-
-    @staticmethod
-    def read_txt_file(filename):
-        """Return the content of a file."""
-        with open(filename) as data_file:
-            return data_file.read()

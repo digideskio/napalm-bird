@@ -71,7 +71,7 @@ class BirdDriver(NetworkDriver):
                 'ipv{}'.format(addr.version): {
                     'received_prefixes': 0,
                     'accepted_prefixes': peer['routes_imported'],
-                    'sent_prefixes': 0,
+                    'sent_prefixes': peer['routes_exported'],
                     }
                 }
             rv['peers'][addr] = row

@@ -1,17 +1,3 @@
-# Copyright 2016 Dravetech AB. All rights reserved.
-#
-# The contents of this file are licensed under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with the
-# License. You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations under
-# the License.
-
 """
 Napalm driver for Bird.
 
@@ -22,6 +8,11 @@ from napalm_base.base import NetworkDriver
 from napalm_base.exceptions import ConnectionException, SessionLockedException, \
                                    MergeConfigException, ReplaceConfigException,\
                                    CommandErrorException
+# netaddr installed by napalm
+from netaddr import IPAddress
+
+
+import pybird
 
 
 class BirdDriver(NetworkDriver):
@@ -34,9 +25,12 @@ class BirdDriver(NetworkDriver):
         self.password = password
         self.timeout = timeout
 
-        if optional_args is None:
-            optional_args = {}
+        if optional_args is None or 'socket_file' not in optional_args:
+            raise ValueError("socket_file needs to be defined")
 
+        self.socket_file = optional_args['socket_file']
+
+        self.device = pybird.PyBird(self.socket_file, self.hostname, self.username, self.password)
 
     def open(self):
         """Implementation of NAPALM method open."""
@@ -45,3 +39,42 @@ class BirdDriver(NetworkDriver):
     def close(self):
         """Implementation of NAPALM method close."""
         pass
+
+    def get_bgp_neighbors(self):
+        """Return BGP neighbors details."""
+
+        router_id = self.device.get_bird_status()['router_id']
+
+        field_map = {
+            # 'local_as'
+            'asn': 'remote_as',
+            'router_id': 'remote_id',
+            'up': 'is_up',
+            'description': 'description',
+            # 'uptime'
+            }
+
+        rv = {
+            'router_id': router_id,
+            'peers': {},
+            }
+
+        for peer in self.device.get_peer_status():
+            if peer['protocol'] != 'BGP':
+                continue
+
+            addr = IPAddress(peer['address'])
+
+            row = {v: peer.get(k, None) for k, v in field_map.items()}
+            row['is_enabled'] = True
+            row['address_family'] = {
+                'ipv{}'.format(addr.version): {
+                    'received_prefixes': 0,
+                    'accepted_prefixes': peer['routes_imported'],
+                    'sent_prefixes': 0,
+                    }
+                }
+            rv['peers'][addr] = row
+
+        return rv
+
